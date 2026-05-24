@@ -78,6 +78,20 @@ func NewWeComSender(name, endpoint string, client *http.Client) Sender {
 	}, nil)
 }
 
+// NewTelegramSender posts to the Telegram Bot API sendMessage endpoint.
+// endpoint is the full https://api.telegram.org/bot<TOKEN>/sendMessage URL
+// (bot token in the path); chatID is the target chat, sent in the JSON
+// body. Telegram's auth model differs from the webhook channels — token in
+// the URL, chat_id in the body — so it doesn't use the secret/signing path.
+func NewTelegramSender(name, endpoint, chatID string, client *http.Client) Sender {
+	return newWebhookSender(name, endpoint, "", client, func(msg Message) (any, error) {
+		return map[string]any{
+			"chat_id": chatID,
+			"text":    formatText(msg),
+		}, nil
+	}, nil)
+}
+
 func newWebhookSender(
 	name string,
 	endpoint string,

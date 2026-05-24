@@ -192,6 +192,7 @@ const (
 	ChannelTypeFeishu   = "feishu"
 	ChannelTypeDingTalk = "dingtalk"
 	ChannelTypeWeCom    = "wecom"
+	ChannelTypeTelegram = "telegram"
 )
 
 const (

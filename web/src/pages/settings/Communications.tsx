@@ -34,10 +34,11 @@ import { useI18n } from '@/i18n/locale';
 // every notification attempt with status — that's the audit trail.
 // Operators looking for delivery history should hit
 // 设置 → 告警事件 instead.
-type ChannelType = 'webhook' | 'slack' | 'feishu' | 'dingtalk' | 'wecom';
+type ChannelType = 'webhook' | 'slack' | 'feishu' | 'dingtalk' | 'wecom' | 'telegram';
 
 type TypeMeta = {
   type: ChannelType;
+  group: 'cn' | 'intl' | 'generic';
   labelZh: string;
   labelEn: string;
   icon: IconType;
@@ -49,6 +50,7 @@ type TypeMeta = {
 const TYPE_CARDS: TypeMeta[] = [
   {
     type: 'feishu',
+    group: 'cn',
     labelZh: '飞书',
     labelEn: 'Feishu',
     icon: MessageSquareShare,
@@ -58,6 +60,7 @@ const TYPE_CARDS: TypeMeta[] = [
   },
   {
     type: 'dingtalk',
+    group: 'cn',
     labelZh: '钉钉',
     labelEn: 'DingTalk',
     icon: Send,
@@ -67,15 +70,17 @@ const TYPE_CARDS: TypeMeta[] = [
   },
   {
     type: 'wecom',
-    labelZh: '企业微信',
-    labelEn: 'WeCom',
+    group: 'cn',
+    labelZh: '微信',
+    labelEn: 'WeChat',
     icon: MessageCircle,
-    hintZh: '企业微信群机器人 webhook（key 在 URL 里）。',
-    hintEn: 'WeCom group-bot webhook (key embedded in the URL).',
+    hintZh: '微信推送走企业微信群机器人 webhook（key 在 URL 里）；消费版微信没有群机器人接口。',
+    hintEn: 'WeChat delivery via a WeCom group-bot webhook (key in the URL); consumer WeChat has no bot API.',
     endpointPlaceholder: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx',
   },
   {
     type: 'slack',
+    group: 'intl',
     labelZh: 'Slack',
     labelEn: 'Slack',
     icon: Slack,
@@ -84,7 +89,18 @@ const TYPE_CARDS: TypeMeta[] = [
     endpointPlaceholder: 'https://hooks.slack.com/services/Txxx/Bxxx/xxx',
   },
   {
+    type: 'telegram',
+    group: 'intl',
+    labelZh: 'Telegram',
+    labelEn: 'Telegram',
+    icon: Send,
+    hintZh: 'Telegram bot sendMessage 接口；endpoint 填 https://api.telegram.org/bot<token>/sendMessage，secret 字段填 Chat ID。',
+    hintEn: 'Telegram bot sendMessage API; endpoint = https://api.telegram.org/bot<token>/sendMessage, put the Chat ID in the secret field.',
+    endpointPlaceholder: 'https://api.telegram.org/bot<token>/sendMessage',
+  },
+  {
     type: 'webhook',
+    group: 'generic',
     labelZh: 'Webhook',
     labelEn: 'Webhook',
     icon: Webhook,
@@ -94,10 +110,24 @@ const TYPE_CARDS: TypeMeta[] = [
   },
 ];
 
+// Locale-aware ordering: surface the channels most relevant to the UI
+// language first. English → Slack / Telegram first; Chinese → 飞书 / 钉钉 /
+// 微信 first. Webhook (generic) stays last either way. Within a group the
+// declaration order above is preserved (Array.prototype.sort is stable).
+const GROUP_RANK: Record<string, Record<TypeMeta['group'], number>> = {
+  'en-US': { intl: 0, cn: 1, generic: 2 },
+  'zh-CN': { cn: 0, intl: 1, generic: 2 },
+};
+function orderCardsByLocale(locale: string): TypeMeta[] {
+  const rank = GROUP_RANK[locale] ?? GROUP_RANK['zh-CN'];
+  return [...TYPE_CARDS].sort((a, b) => rank[a.group] - rank[b.group]);
+}
+
 type Toast = { kind: 'ok' | 'err'; text: string } | null;
 
 export default function SettingsCommunications() {
-  const { tr } = useI18n();
+  const { tr, locale } = useI18n();
+  const orderedCards = useMemo(() => orderCardsByLocale(locale), [locale]);
   const [items, setItems] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -200,7 +230,7 @@ export default function SettingsCommunications() {
             </div>
           </Card>
         ) : (
-          TYPE_CARDS.map((meta) => (
+          orderedCards.map((meta) => (
             <TypeCard
               key={meta.type}
               meta={meta}
@@ -392,7 +422,7 @@ function ChannelEditorModal({
   onClose(): void;
   onSaved(): void;
 }) {
-  const { tr } = useI18n();
+  const { tr, locale } = useI18n();
   const [form, setForm] = useState<ChannelInput>(() => ({
     name: channel?.name ?? '',
     type: channel?.type ?? presetType ?? 'webhook',
@@ -472,7 +502,7 @@ function ChannelEditorModal({
             disabled={mode === 'edit'}
             className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none disabled:opacity-60"
           >
-            {TYPE_CARDS.map((t) => (
+            {orderCardsByLocale(locale).map((t) => (
               <option key={t.type} value={t.type}>
                 {tr(t.labelZh, t.labelEn)} ({t.type})
               </option>

@@ -21,6 +21,12 @@ import (
 // package's *Router satisfies it; tests stub it.
 type Notifier interface {
 	Send(ctx context.Context, msg notify.Message, channels ...string) error
+	// SendVia delivers through an explicitly-built sender — used for
+	// persisted channels whose Sender is constructed per-row from
+	// ChannelType + ConfigJSON (buildSenderFromChannel), rather than
+	// looked up by name. Keeps delivery on the Notifier seam so router
+	// gating + test stubs still apply.
+	SendVia(ctx context.Context, msg notify.Message, sender notify.Sender) error
 }
 
 // NoopHostMetricIngester is the post-Phase-3-final stand-in for the
@@ -1254,7 +1260,21 @@ func (u *Usecase) MaybeNotify(ctx context.Context, res *FiringResult, msg notify
 			deliveryID = id
 		}
 
-		sendErr := opts.Notifier.Send(ctx, msg, ch.Name)
+		var sendErr error
+		if ch.ID > 0 {
+			// Persisted channel: build the typed sender from its
+			// ChannelType + ConfigJSON, then deliver through the Notifier
+			// seam (SendVia) so router gating/timeout — and test stubs —
+			// still apply. (Synthetic rows, ID==0, bridge to the
+			// env-config notifier by name in the else branch.)
+			if sender, berr := buildSenderFromChannel(ch); berr != nil {
+				sendErr = berr
+			} else {
+				sendErr = opts.Notifier.SendVia(ctx, msg, sender)
+			}
+		} else {
+			sendErr = opts.Notifier.Send(ctx, msg, ch.Name)
+		}
 		if sendErr == nil {
 			anySuccess = true
 		} else {
@@ -1312,7 +1332,47 @@ func channelHasDestination(ch *model.Channel) bool {
 	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(cfg["url"]) != ""
+	return strings.TrimSpace(cfg["endpoint"]) != "" || strings.TrimSpace(cfg["url"]) != ""
+}
+
+// buildSenderFromChannel constructs a notify.Sender from a persisted
+// channel's ChannelType + ConfigJSON. Until this existed, UI/seeded
+// channels were never actually delivered: MaybeNotify sent by name to the
+// env-config Router (which only knows env-config channel names), and
+// ChannelType/ConfigJSON were stored but unused — so WeCom and every
+// hand-created channel silently no-op'd. The URL lives under the
+// "endpoint" key (encodeChannelConfig); "secret" is the optional signing /
+// credential field (it carries the chat_id for telegram).
+func buildSenderFromChannel(ch *model.Channel) (notify.Sender, error) {
+	cfg, err := ch.Config()
+	if err != nil {
+		return nil, fmt.Errorf("decode channel config: %w", err)
+	}
+	endpoint := strings.TrimSpace(cfg["endpoint"])
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(cfg["url"]) // defensive: legacy key
+	}
+	if endpoint == "" {
+		return nil, fmt.Errorf("channel %q has no endpoint", ch.Name)
+	}
+	secret := strings.TrimSpace(cfg["secret"])
+	switch ch.ChannelType {
+	case model.ChannelTypeSlack:
+		return notify.NewSlackSender(ch.Name, endpoint, nil), nil
+	case model.ChannelTypeFeishu:
+		return notify.NewFeishuSender(ch.Name, endpoint, secret, nil), nil
+	case model.ChannelTypeDingTalk:
+		return notify.NewDingTalkSender(ch.Name, endpoint, secret, nil), nil
+	case model.ChannelTypeWeCom:
+		return notify.NewWeComSender(ch.Name, endpoint, nil), nil
+	case model.ChannelTypeTelegram:
+		// endpoint = bot sendMessage URL; secret field carries the chat_id.
+		return notify.NewTelegramSender(ch.Name, endpoint, secret, nil), nil
+	case model.ChannelTypeWebhook, "":
+		return notify.NewGenericWebhookSender(ch.Name, endpoint, secret, nil), nil
+	default:
+		return nil, fmt.Errorf("unknown channel type %q", ch.ChannelType)
+	}
 }
 
 // resolveChannels picks the recipients for an incident. Resolver wins when

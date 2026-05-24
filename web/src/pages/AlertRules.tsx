@@ -1716,16 +1716,18 @@ function KindPicker({
 const CHANNEL_TYPE_LABEL_ZH: Record<string, string> = {
   feishu: '飞书',
   dingtalk: '钉钉',
-  wecom: '企业微信',
+  wecom: '微信',
   slack: 'Slack',
+  telegram: 'Telegram',
   webhook: 'Webhook',
   log: '日志（本地）',
 };
 const CHANNEL_TYPE_LABEL_EN: Record<string, string> = {
   feishu: 'Feishu',
   dingtalk: 'DingTalk',
-  wecom: 'WeCom',
+  wecom: 'WeChat',
   slack: 'Slack',
+  telegram: 'Telegram',
   webhook: 'Webhook',
   log: 'Log (local)',
 };
@@ -1733,14 +1735,15 @@ const CHANNEL_TYPE_LABEL_EN: Record<string, string> = {
 // CHANNEL_TYPE_ORDER is the FIXED row order for the type-grouped
 // ChannelsField (Tencent Cloud Monitor's "通知方式" panel inspiration).
 // Each row shows one channel TYPE; the row's instances live inside.
-// Order: 飞书 → 企业微信 → 钉钉 → Slack → Webhook (IM-first, generic
-// last). `log` is intentionally absent — that channel type was removed
-// in 2026-05.
+// Order: 飞书 → 微信 → 钉钉 → Slack → Telegram → Webhook (IM-first,
+// generic last). `log` is intentionally absent — that channel type was
+// removed in 2026-05.
 const CHANNEL_TYPE_ORDER: Array<{ type: string; icon: typeof Webhook }> = [
   { type: 'feishu', icon: MessageSquareShare },
   { type: 'wecom', icon: MessageCircle },
   { type: 'dingtalk', icon: Send },
   { type: 'slack', icon: Slack },
+  { type: 'telegram', icon: Send },
   { type: 'webhook', icon: Webhook },
 ];
 

@@ -129,6 +129,32 @@ func (r *Router) Send(ctx context.Context, msg Message, channels ...string) erro
 	return errors.Join(errs...)
 }
 
+// SendVia delivers msg through an explicitly-constructed sender, rather
+// than looking one up by name. Used for DB-stored channels whose Sender is
+// built per-row from ChannelType + ConfigJSON (the env-config NewFromConfig
+// only pre-registers env channels by name). Honors the router's enabled
+// flag + timeout so it gates identically to Send.
+func (r *Router) SendVia(ctx context.Context, msg Message, sender Sender) error {
+	if r == nil || !r.enabled {
+		return nil
+	}
+	if sender == nil {
+		return errors.New("notify: nil sender")
+	}
+	if msg.Subject == "" {
+		return errors.New("notify: subject required")
+	}
+	if msg.Severity == "" {
+		msg.Severity = SeverityInfo
+	}
+	if msg.OccurredAt.IsZero() {
+		msg.OccurredAt = time.Now().UTC()
+	}
+	sendCtx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	return sender.Send(sendCtx, msg)
+}
+
 // ChannelNames returns the configured channel names. It is intended for
 // readiness checks and diagnostics, not for exposing secrets.
 func (r *Router) ChannelNames() []string {

@@ -32,6 +32,22 @@ func (f *fakeNotifier) Send(_ context.Context, msg notify.Message, channels ...s
 	return nil
 }
 
+// SendVia records the same way as Send (keyed by the sender's name) so
+// assertions on msgs/channels still work for the persisted-channel
+// dispatch path (MaybeNotify builds a typed sender then calls SendVia).
+func (f *fakeNotifier) SendVia(_ context.Context, msg notify.Message, sender notify.Sender) error {
+	f.msgs = append(f.msgs, msg)
+	name := ""
+	if sender != nil {
+		name = sender.Name()
+	}
+	f.channels = append(f.channels, []string{name})
+	if f.fail {
+		return errors.New("synthetic notify failure")
+	}
+	return nil
+}
+
 // fakeRepo is an in-memory implementation of biz.Repo sufficient to drive
 // every alert test. Only the subset RecordFiring + maybeNotify touches is
 // implemented; ListIncidents et al. return empty.
