@@ -59,7 +59,7 @@ func ParseAllowFrom(raw string) []string {
 		tok = strings.TrimSpace(tok)
 		tok = strings.TrimPrefix(tok, "telegram:")
 		tok = strings.TrimPrefix(tok, "tg:")
-		if tok == "" || !isNumericID(tok) {
+		if tok == "" {
 			continue
 		}
 		if _, dup := seen[tok]; dup {
@@ -115,7 +115,18 @@ func (in *AppInput) validate() error {
 		if mode != model.ModeStream {
 			return fmt.Errorf("%w: telegram only supports stream mode", errs.ErrInvalid)
 		}
-		ids := ParseAllowFrom(in.AllowFrom)
+		raw := ParseAllowFrom(in.AllowFrom)
+		// Telegram user IDs are numeric (BotFather + getMe return int64).
+		// Drop non-numeric tokens here rather than in ParseAllowFrom so the
+		// shared parser can be reused by Slack (whose IDs are letter-prefixed
+		// U…). A typo'd "alice" lands as "no IDs left" → operator sees the
+		// helpful required-error rather than a silently-empty allowlist.
+		ids := make([]string, 0, len(raw))
+		for _, id := range raw {
+			if isNumericID(id) {
+				ids = append(ids, id)
+			}
+		}
 		if len(ids) == 0 {
 			return fmt.Errorf("%w: telegram requires allow_from — at least one numeric Telegram user ID (the bot is publicly reachable; an empty allowlist would let anyone command the agent)", errs.ErrInvalid)
 		}
@@ -133,9 +144,18 @@ func (in *AppInput) validate() error {
 		if mode != model.ModeStream {
 			return fmt.Errorf("%w: slack only supports stream mode (Socket Mode)", errs.ErrInvalid)
 		}
-		ids := ParseAllowFrom(in.AllowFrom)
+		raw := ParseAllowFrom(in.AllowFrom)
+		// Slack user IDs start with U (rare W for guests on Enterprise).
+		// Reject obvious typos here so the operator sees a clear error
+		// instead of "bot silently ignores everyone".
+		ids := make([]string, 0, len(raw))
+		for _, id := range raw {
+			if len(id) >= 2 && (id[0] == 'U' || id[0] == 'W') {
+				ids = append(ids, id)
+			}
+		}
 		if len(ids) == 0 {
-			return fmt.Errorf("%w: slack requires allow_from — at least one Slack user ID (e.g. UABC123). Without it any workspace member could command a tool-equipped agent", errs.ErrInvalid)
+			return fmt.Errorf("%w: slack requires allow_from — at least one Slack user ID (e.g. UABC123, find via Profile → ⋯ → Copy member ID). Without it any workspace member could command a tool-equipped agent", errs.ErrInvalid)
 		}
 		in.AllowFrom = strings.Join(ids, ",") // canonicalize stored form
 	}
