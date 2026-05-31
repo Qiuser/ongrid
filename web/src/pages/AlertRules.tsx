@@ -1815,21 +1815,24 @@ function ChannelsField({
     () => channels.filter((c) => c.enabled),
     [channels],
   );
+  // Two-mode picker: "default" or "custom". Storage shape stays the same —
+  // empty selectedIds = fallback (router.go ChannelsFor 全 fan-out);
+  // non-empty = explicit pin. UI just gives a clear handle on which mode
+  // is active so 0 ticks doesn't look like 0 notify.
   const isDefault = selectedIds.length === 0;
   const toggleDefault = () => {
-    // checking master = clear all selection (return to fallback)
-    // unchecking master without picking anything = ambiguous; treat as
-    // "switch to custom mode but pick nothing yet" — the per-type rows
-    // become interactive and the operator picks. Storage stays empty
-    // until they actually tick something, so the resolver fallback is
-    // still in effect until then. Matches the operator's expectation:
-    // "I unchecked default, now I'll pick my own."
-    if (!isDefault) {
+    if (isDefault) {
+      // Switch to custom mode with EVERY enabled channel auto-picked so
+      // the operator can start un-ticking the ones they want to drop,
+      // instead of having to re-tick everything from scratch. Effective
+      // delivery is unchanged at this instant — same channels fire —
+      // but now the rule has an explicit pin so adding a new channel
+      // later won't silently widen the blast radius.
+      onChange(fallbackChannels.map((c) => c.id));
+    } else {
+      // Back to default mode = clear pin = backend goes back to fallback.
       onChange([]);
     }
-    // when isDefault and they click master, do nothing — they have to
-    // toggle a per-type row to leave default mode (avoids the empty
-    // "neither default nor specific" state).
   };
 
   return (
@@ -1891,24 +1894,31 @@ function ChannelsField({
           {!isDefault && (
             <div className="mt-1 pl-5 text-[10px] text-zinc-500">
               {tr(
-                '已切到自定义模式 — 只通知下面勾选的渠道。要回默认就勾上方框。',
-                'Custom mode — only the channels ticked below get notified. Tick the box above to revert to default.',
+                '已切到自定义模式 — 下面已自动勾上全部渠道,你可以取消不想要的;要回默认就勾上方框。',
+                'Custom mode — all channels are pre-ticked below; untick the ones you don\'t want. Tick the box above to revert to default.',
               )}
             </div>
           )}
         </div>
-        {/* Per-type rows. In default mode they're shown dimmed so the
-            operator sees them as "options to switch to", not as the
-            current effective state. Ticking any auto-flips out of default. */}
-        <div className={cn('space-y-1.5 transition', isDefault && 'opacity-50')}>
+        {/* Per-type rows. In default mode they render as visually checked
+            but locked (rowDisabled) so the operator can't half-pick from
+            inside a state the master doesn't represent. Clicking master
+            off auto-fills selectedIds with every enabled channel — the
+            current visual state stays put, but it's now editable. */}
+        <div className="space-y-1.5">
         {CHANNEL_TYPE_ORDER.map(({ type, icon: Icon }) => {
           const instances = byType[type] ?? [];
           const total = instances.length;
+          // While master "default" is on, render every per-type row as
+          // visually checked (the resolver fallback fans out to all enabled
+          // channels) and disable interaction so it's unambiguous that the
+          // operator has to flip master off to start narrowing.
           const selectedHere = instances.filter((c) => selectedSet.has(c.id));
           const selectedCount = selectedHere.length;
           const enabledCount = instances.filter((c) => c.enabled).length;
-          const headerChecked = selectedCount > 0;
-          const headerIndeterminate = selectedCount > 0 && selectedCount < enabledCount;
+          const headerChecked = isDefault ? enabledCount > 0 : selectedCount > 0;
+          const headerIndeterminate = !isDefault && selectedCount > 0 && selectedCount < enabledCount;
+          const rowDisabled = isDefault; // master overrides per-type interaction
           const isOpen = expanded[type] ?? false;
           const noInstances = total === 0;
 
@@ -1931,11 +1941,13 @@ function ChannelsField({
                     // visually distinguish partial selections.
                     if (el) el.indeterminate = headerIndeterminate;
                   }}
-                  disabled={noInstances || enabledCount === 0}
-                  onChange={() => toggleType(type)}
-                  className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                  disabled={rowDisabled || noInstances || enabledCount === 0}
+                  onChange={() => !rowDisabled && toggleType(type)}
+                  className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 disabled:opacity-60"
                   title={
-                    noInstances
+                    rowDisabled
+                      ? tr('当前为默认模式 — 取消上方"默认"勾选才能单独选择', 'Default mode is on — uncheck "Default" above to pick individually')
+                      : noInstances
                       ? tr('尚未配置该通道，先去设置→通信通道', 'No channel of this type yet — go to Settings → Notifications')
                       : enabledCount === 0
                       ? tr('该类型下所有实例均已停用', 'All instances of this type are disabled')
@@ -2023,8 +2035,15 @@ function ChannelsField({
                 <div className="border-t border-zinc-800/70 bg-zinc-950/40 px-2.5 py-2">
                   <div className="space-y-1">
                     {instances.map((c) => {
-                      const checked = selectedSet.has(c.id);
+                      // In default mode, every enabled instance is
+                      // "implicitly checked" by the resolver fallback.
+                      // Render that visually + lock interaction so the
+                      // operator can't half-pick from inside a mode the
+                      // master doesn't represent.
+                      const realChecked = selectedSet.has(c.id);
+                      const checked = isDefault ? c.enabled : realChecked;
                       const disabled = !c.enabled;
+                      const lockedByMaster = isDefault;
                       return (
                         <label
                           key={c.id}
@@ -2032,18 +2051,26 @@ function ChannelsField({
                             'flex items-center gap-2 rounded px-1.5 py-1 text-[11px] transition',
                             disabled
                               ? 'cursor-not-allowed opacity-50'
-                              : checked
+                              : lockedByMaster
+                              ? 'cursor-not-allowed bg-accent/5'
+                              : realChecked
                               ? 'cursor-pointer bg-accent/10'
                               : 'cursor-pointer hover:bg-zinc-900',
                           )}
-                          title={disabled ? tr('该实例已停用，去 设置→通信通道 启用', 'Instance disabled — enable it under Settings → Notifications') : undefined}
+                          title={
+                            disabled
+                              ? tr('该实例已停用，去 设置→通信通道 启用', 'Instance disabled — enable it under Settings → Notifications')
+                              : lockedByMaster
+                              ? tr('当前为默认模式 — 取消上方"默认"勾选才能单独取消', 'Default mode is on — uncheck "Default" above to untick this individually')
+                              : undefined
+                          }
                         >
                           <input
                             type="checkbox"
                             checked={checked && !disabled}
-                            disabled={disabled}
-                            onChange={() => !disabled && toggleInstance(c.id)}
-                            className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                            disabled={disabled || lockedByMaster}
+                            onChange={() => !disabled && !lockedByMaster && toggleInstance(c.id)}
+                            className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 disabled:opacity-60"
                           />
                           <span
                             className={cn(
