@@ -56,10 +56,11 @@ func TestAlert_MetricRawEvaluatorFires_E1(t *testing.T) {
 		{Labels: map[string]string{}, Value: 95.0},
 	})
 
-	// Wait long enough for at least one rules refresh + one eval tick.
-	// Cache interval = EvalInterval (main.go 801) = 2s, so 5s = 2 refresh
-	// rounds, plenty of slack for the manager to compile + dispatch.
-	deadline := time.Now().Add(15 * time.Second)
+	// Wait long enough for: manager finishes startup (~10–15s on cold
+	// runs), one rules cache refresh + one eval tick (cache interval =
+	// EvalInterval = 2s, main.go 801). 45s window with 1s poll gives
+	// generous slack for the box's CPU contention.
+	deadline := time.Now().Add(45 * time.Second)
 	for time.Now().Before(deadline) {
 		status, list, err := env.DoJSON("GET", "/api/v1/alerts/incidents", nil, pair.AccessToken)
 		if err != nil {
@@ -76,9 +77,12 @@ func TestAlert_MetricRawEvaluatorFires_E1(t *testing.T) {
 
 	// Diagnostic: dump what we did see so the failure message is useful.
 	_, list, _ := env.DoJSON("GET", "/api/v1/alerts/incidents", nil, pair.AccessToken)
-	t.Fatalf("no incident with rule=%q within 15s; list=%v", ruleKey, list)
+	t.Fatalf("no incident with rule_key=%q within 45s; list=%v", ruleKey, list)
 }
 
+// itemsHaveRule scans the incidents list response for one whose rule_key
+// matches. The DTO field is rule_key (not rule) — caught by the first
+// E1 run where the assertion missed despite the incident actually firing.
 func itemsHaveRule(list map[string]any, ruleKey string) bool {
 	items, _ := list["items"].([]any)
 	for _, it := range items {
@@ -86,7 +90,7 @@ func itemsHaveRule(list map[string]any, ruleKey string) bool {
 		if m == nil {
 			continue
 		}
-		if r, _ := m["rule"].(string); r == ruleKey {
+		if r, _ := m["rule_key"].(string); r == ruleKey {
 			return true
 		}
 	}
