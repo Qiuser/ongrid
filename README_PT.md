@@ -42,16 +42,18 @@ make compose-up    # make compose-down to stop
 
 ## Recursos
 
-- 🤖 **Agentes em dois níveis Coordinator + Specialist** — O coordinator gerencia a conversa e delega para sub-agentes SRE / rede / DB / ativos. Cada specialist tem seu próprio toolbag e persona; o locale da UI é propagado por toda a cadeia.
-- 🚨 **Auto-investigação ao disparar alerta** — Alerta dispara → o investigator lança um RCA worker → causa raiz + cadeia de evidências reescritas na sessão de chat. Roda mesmo fora do horário de plantão.
-- 🔍 **RCA de causa raiz, não conversa superficial** — O agente percorre a topologia de serviços para análise de raio de impacto, correlaciona métricas / logs / traces e identifica o "porquê" até uma **linha de código fonte**.
-- 🔒 **Zero portas de entrada** — O edge disca para fora; os hosts não abrem nenhuma porta 22 / 80 / 443. O plano de dados de telemetria é separado do plano de controle.
-- 💻 **SSH no navegador** — Um shell interativo para qualquer host pelo mesmo túnel de saída revertido. Sem distribuir chaves SSH, sem jumpbox, sem porta 22. Cada comando auditado.
-- 🐳 **Self-host em um comando** — `docker compose up` sobe a stack completa (manager + MySQL + Qdrant + frontier). Zero dependência SaaS.
-- 📊 **Stack de observabilidade integrada** — Prometheus (métricas) / Loki (logs) / Tempo (traces) / Grafana (dashboards) prontos automaticamente. Pergunte em linguagem natural e o agente escreve PromQL / LogQL / TraceQL.
-- 🧠 **Traga seu próprio modelo** — Anthropic / OpenAI / GLM / DeepSeek / Gemini / Kimi ou qualquer endpoint compatível com OpenAI. Roteamento de provedores e troca de modelo padrão a quente, sem reiniciar.
-- 💬 **Canais IM bidirecionais** — Slack / Telegram / Larksuite (Feishu) / DingTalk / WeCom — pergunte de onde sua equipe já conversa; allow-list por canal e idioma por canal.
-- 🛠️ **Ferramentas de host só-leitura, cada chamada auditada** — bash (sandbox), `host_probe_*`, `query_promql`, `expand_topology`, 26+ ferramentas. O papel viewer recebe automaticamente apenas o subconjunto ClassSafe.
+|   | Feature | Description |
+|---|---|---|
+| 🤖 | **Agentes em dois níveis Coordinator + Specialist** | O coordinator gerencia a conversa e delega para sub-agentes SRE / rede / DB / ativos. Cada specialist tem seu próprio toolbag e persona; o locale da UI é propagado por toda a cadeia. |
+| 🚨 | **Auto-investigação ao disparar alerta** | Alerta dispara → o investigator lança um RCA worker → causa raiz + cadeia de evidências reescritas na sessão de chat. Roda mesmo fora do horário de plantão. |
+| 🔍 | **RCA de causa raiz, não conversa superficial** | O agente percorre a topologia de serviços para análise de raio de impacto, correlaciona métricas / logs / traces e identifica o "porquê" até uma **linha de código fonte**. |
+| 🔒 | **Zero portas de entrada** | O edge disca para fora; os hosts não abrem nenhuma porta 22 / 80 / 443. O plano de dados de telemetria é separado do plano de controle. |
+| 💻 | **SSH no navegador** | Um shell interativo para qualquer host pelo mesmo túnel de saída revertido. Sem distribuir chaves SSH, sem jumpbox, sem porta 22. Cada comando auditado. |
+| 🐳 | **Self-host em um comando** | `docker compose up` sobe a stack completa (manager + MySQL + Qdrant + frontier). Zero dependência SaaS. |
+| 📊 | **Stack de observabilidade integrada** | Prometheus (métricas) / Loki (logs) / Tempo (traces) / Grafana (dashboards) prontos automaticamente. Pergunte em linguagem natural e o agente escreve PromQL / LogQL / TraceQL. |
+| 🧠 | **Traga seu próprio modelo** | Anthropic / OpenAI / GLM / DeepSeek / Gemini / Kimi ou qualquer endpoint compatível com OpenAI. Roteamento de provedores e troca de modelo padrão a quente, sem reiniciar. |
+| 💬 | **Canais IM bidirecionais** | Slack / Telegram / Larksuite (Feishu) / DingTalk / WeCom — pergunte de onde sua equipe já conversa; allow-list por canal e idioma por canal. |
+| 🛠️ | **Ferramentas de host só-leitura, cada chamada auditada** | bash (sandbox), `host_probe_*`, `query_promql`, `expand_topology`, 26+ ferramentas. O papel viewer recebe automaticamente apenas o subconjunto ClassSafe. |
 
 ## Integrações
 
