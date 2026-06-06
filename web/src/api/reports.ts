@@ -158,11 +158,12 @@ export type ScheduleInput = {
 
 // --- reports ---
 
-export function listReports(params?: { status?: string; kind?: string; limit?: number }) {
+export function listReports(params?: { status?: string; kind?: string; limit?: number; offset?: number }) {
   const q = new URLSearchParams();
   if (params?.status) q.set('status', params.status);
   if (params?.kind) q.set('kind', params.kind);
   if (params?.limit) q.set('limit', String(params.limit));
+  if (params?.offset) q.set('offset', String(params.offset));
   const qs = q.toString();
   return request<{ reports: ReportListItem[] }>('GET', `/reports${qs ? `?${qs}` : ''}`);
 }

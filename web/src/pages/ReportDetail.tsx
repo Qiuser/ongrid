@@ -58,11 +58,11 @@ export default function ReportDetailPage() {
   }
 
   return (
-    <main className="anim-fade flex flex-1 flex-col overflow-hidden">
+    <main className="report-print-area anim-fade flex flex-1 flex-col overflow-hidden">
       <header className="app-header border-b border-zinc-800/60 px-6 py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <Link to="/reports" className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200">
+            <Link to="/reports" className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 print:hidden">
               <ArrowLeft size={12} /> {tr('返回报告', 'Back to reports')}
             </Link>
             <h1 className="mt-1 truncate text-base font-semibold text-zinc-100">{report.title}</h1>
@@ -112,14 +112,7 @@ export default function ReportDetailPage() {
         )}
       </header>
 
-      <div className="report-print-area flex-1 overflow-y-auto px-6 py-5">
-        {/* Print-only title block (the app header is hidden when printing) */}
-        <div className="mx-auto mb-4 hidden max-w-4xl border-b border-zinc-300 pb-3 print:block">
-          <h1 className="text-lg font-semibold">{report.title}</h1>
-          <div className="mt-0.5 text-xs text-zinc-500">
-            {report.generated_at && fullDateTime(report.generated_at)} · {report.timezone}
-          </div>
-        </div>
+      <div className="flex-1 overflow-y-auto px-6 py-5">
         <div className="mx-auto max-w-4xl">
           {report.status === 'failed' ? (
             <div className="rounded-lg border border-red-700/40 bg-red-900/20 p-4 text-sm text-red-200">

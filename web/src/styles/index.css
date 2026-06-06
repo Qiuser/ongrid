@@ -500,8 +500,9 @@ html.light .react-flow__minimap-mask {
 }
 
 /* --- Report PDF export (HLD-014). window.print() isolates the report
-   body: hide all app chrome, force a light print theme, and let the
-   .report-print-area flow as the printed document. --- */
+   body and keeps the on-screen dark + colour treatment (print-color-
+   adjust:exact) so the PDF matches the app. Only app chrome is hidden;
+   colours are NOT stripped. --- */
 @media print {
   /* Hide everything, then reveal only the report content. */
   body * {
@@ -516,25 +517,28 @@ html.light .react-flow__minimap-mask {
     left: 0;
     top: 0;
     width: 100%;
+    height: auto !important;
     overflow: visible !important;
-    padding: 0 !important;
-    background: white !important;
-    color: black !important;
   }
-  /* Light-ink the dark cards so they print legibly on white. */
+  /* Let the inner scroll container flow to full height when printing. */
   .report-print-area * {
-    color: black !important;
-    border-color: #d4d4d8 !important;
-    background-image: none !important;
+    overflow: visible !important;
   }
-  .report-print-area .tabular-nums {
-    color: #111 !important;
+  /* Force backgrounds + accent colours to render in the PDF (Chrome/
+     Safari honour this; it's why the cards/numbers keep their colour). */
+  html,
+  body,
+  .report-print-area {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: #09090b !important; /* zinc-950 — match the app */
   }
-  /* Keep a stat row from splitting across a page break. */
-  .report-print-area section {
+  /* Keep a stat row / card from splitting across a page break. */
+  .report-print-area section,
+  .report-print-area .rounded-xl {
     break-inside: avoid;
   }
   @page {
-    margin: 14mm;
+    margin: 10mm;
   }
 }

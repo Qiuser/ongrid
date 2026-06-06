@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, Boxes, Cpu, MessageSquare, Siren } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/i18n/locale';
 import type {
@@ -69,45 +68,17 @@ function Sparkline({ points, className }: { points: number[]; className?: string
 // --- colour themes per row ---
 type Tone = 'indigo' | 'rose' | 'violet' | 'cyan';
 
-const TONE: Record<
-  Tone,
-  { num: string; top: string; card: string; bar: string; icon: string; pill: string }
-> = {
-  indigo: {
-    num: 'text-indigo-300',
-    top: 'border-t-indigo-500/70',
-    card: 'border-indigo-500/20 bg-gradient-to-b from-indigo-500/[0.13] to-transparent',
-    bar: 'bg-indigo-400',
-    icon: 'text-indigo-400',
-    pill: 'bg-indigo-500/15 text-indigo-300 ring-1 ring-inset ring-indigo-500/30',
-  },
-  rose: {
-    num: 'text-rose-300',
-    top: 'border-t-rose-500/70',
-    card: 'border-rose-500/20 bg-gradient-to-b from-rose-500/[0.13] to-transparent',
-    bar: 'bg-rose-400',
-    icon: 'text-rose-400',
-    pill: 'bg-rose-500/15 text-rose-300 ring-1 ring-inset ring-rose-500/30',
-  },
-  violet: {
-    num: 'text-violet-300',
-    top: 'border-t-violet-500/70',
-    card: 'border-violet-500/20 bg-gradient-to-b from-violet-500/[0.13] to-transparent',
-    bar: 'bg-violet-400',
-    icon: 'text-violet-400',
-    pill: 'bg-violet-500/15 text-violet-300 ring-1 ring-inset ring-violet-500/30',
-  },
-  cyan: {
-    num: 'text-cyan-300',
-    top: 'border-t-cyan-500/70',
-    card: 'border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.13] to-transparent',
-    bar: 'bg-cyan-400',
-    icon: 'text-cyan-400',
-    pill: 'bg-cyan-500/15 text-cyan-300 ring-1 ring-inset ring-cyan-500/30',
-  },
+// Flat, Apple-ish palette: colour shows only in the number + a small
+// dot beside the row title. Cards are flat (no gradient, no raised
+// edge); the single accent keeps it calm.
+const TONE: Record<Tone, { num: string; dot: string; bar: string }> = {
+  indigo: { num: 'text-indigo-400', dot: 'bg-indigo-400', bar: 'bg-indigo-400' },
+  rose: { num: 'text-rose-400', dot: 'bg-rose-400', bar: 'bg-rose-400' },
+  violet: { num: 'text-violet-400', dot: 'bg-violet-400', bar: 'bg-violet-400' },
+  cyan: { num: 'text-cyan-400', dot: 'bg-cyan-400', bar: 'bg-cyan-400' },
 };
 
-// StatCard — one big colour-toned number with a coloured top edge.
+// StatCard — flat card, one big colour-toned number. No gradient / bevel.
 function StatCard({
   tone,
   label,
@@ -128,18 +99,18 @@ function StatCard({
   const t = TONE[tone];
   const animated = useCountUp(value);
   return (
-    <div className={cn('rounded-lg border border-t-2 p-3', t.top, t.card)}>
-      <div className="text-[11px] uppercase tracking-wide text-zinc-400">{label}</div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className={cn('text-3xl font-bold tabular-nums', t.num)}>{fmtNum(animated)}</span>
-        {unit && <span className="text-xs font-medium text-zinc-400">{unit}</span>}
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div className="text-xs text-zinc-500">{label}</div>
+      <div className="mt-1.5 flex items-baseline gap-1">
+        <span className={cn('text-3xl font-semibold tabular-nums', t.num)}>{fmtNum(animated)}</span>
+        {unit && <span className="text-xs text-zinc-500">{unit}</span>}
       </div>
-      {sub && <div className="mt-0.5 text-[11px] text-zinc-500">{sub}</div>}
-      {sparkline && sparkline.length >= 2 && <Sparkline points={sparkline} className={cn('mt-1.5', t.num)} />}
+      {sub && <div className="mt-1 text-[11px] text-zinc-500">{sub}</div>}
+      {sparkline && sparkline.length >= 2 && <Sparkline points={sparkline} className={cn('mt-2', t.num)} />}
       {typeof bar === 'number' && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-zinc-800">
           <div
-            className={cn('h-full rounded-full', bar >= 85 ? 'bg-red-500' : bar >= 60 ? 'bg-amber-500' : t.bar)}
+            className={cn('h-full rounded-full', bar >= 85 ? 'bg-red-400' : bar >= 60 ? 'bg-amber-400' : t.bar)}
             style={{ width: `${Math.min(100, Math.max(3, bar))}%` }}
           />
         </div>
@@ -150,13 +121,11 @@ function StatCard({
 
 function Row({
   tone,
-  icon: Icon,
   title,
   desc,
   children,
 }: {
   tone: Tone;
-  icon: typeof Cpu;
   title: string;
   desc?: string;
   children: React.ReactNode;
@@ -165,10 +134,8 @@ function Row({
   return (
     <section>
       <div className="mb-2.5 flex items-center gap-2">
-        <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold', t.pill)}>
-          <Icon size={13} className={t.icon} />
-          {title}
-        </span>
+        <span className={cn('h-1.5 w-1.5 rounded-full', t.dot)} />
+        <h3 className="text-sm font-medium text-zinc-200">{title}</h3>
         {desc && <span className="text-[11px] text-zinc-600">{desc}</span>}
       </div>
       {children}
@@ -256,7 +223,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
   return (
     <div className="space-y-7">
       {/* ROW 1 — 集群态势 */}
-      <Row tone="indigo" icon={Cpu} title={tr('集群态势', 'Cluster posture')} desc={tr('资源水位与监控覆盖', 'resource & coverage')}>
+      <Row tone="indigo" title={tr('集群态势', 'Cluster posture')} desc={tr('资源水位与监控覆盖', 'resource & coverage')}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {res?.available ? (
             <>
@@ -292,7 +259,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
       )}
 
       {/* ROW 2 — 告警与处理 */}
-      <Row tone="rose" icon={Siren} title={tr('告警与处理', 'Alerts & response')} desc={tr('事件、处置与 agent 动作', 'incidents & agent actions')}>
+      <Row tone="rose" title={tr('告警与处理', 'Alerts & response')} desc={tr('事件、处置与 agent 动作', 'incidents & agent actions')}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard tone="rose" label={tr('告警', 'Incidents')} value={incidents.length} />
           <StatCard tone="rose" label={tr('已解决', 'Resolved')} value={resolved} />
@@ -307,7 +274,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
       </Row>
 
       {/* ROW 3 — 知识资产新增 */}
-      <Row tone="violet" icon={Boxes} title={tr('知识资产新增', 'New assets')} desc={tr('本周期新建的助理 / 技能 / 仓库', 'assistants / skills / repos added')}>
+      <Row tone="violet" title={tr('知识资产新增', 'New assets')} desc={tr('本周期新建的助理 / 技能 / 仓库', 'assistants / skills / repos added')}>
         <div className="grid grid-cols-3 gap-3">
           <StatCard tone="violet" label={tr('新增助理', 'Assistants')} value={assets.new_agents} />
           <StatCard tone="violet" label={tr('新增技能', 'Skills')} value={assets.new_skills} />
@@ -316,7 +283,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
       </Row>
 
       {/* ROW 4 — 使用情况 */}
-      <Row tone="cyan" icon={MessageSquare} title={tr('使用情况', 'Usage')} desc={tr('会话与 LLM token 消耗', 'sessions & LLM tokens')}>
+      <Row tone="cyan" title={tr('使用情况', 'Usage')} desc={tr('会话与 LLM token 消耗', 'sessions & LLM tokens')}>
         <div className="grid grid-cols-3 gap-3">
           <StatCard tone="cyan" label={tr('会话数', 'Sessions')} value={usage.sessions} />
           <StatCard tone="cyan" label={tr('输入 token', 'Prompt tokens')} value={usage.prompt_tokens} sub={fmtTokens(usage.prompt_tokens)} />
@@ -326,7 +293,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
 
       {/* Changes */}
       {changes.length > 0 && (
-        <Row tone="cyan" icon={Activity} title={tr('变更记录', 'Changes')}>
+        <Row tone="cyan" title={tr('变更记录', 'Changes')}>
           <div className="space-y-1">{changes.map((ch, i) => <ChangeRow key={i} c={ch} />)}</div>
         </Row>
       )}
