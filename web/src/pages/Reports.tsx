@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarClock, ChevronLeft, ChevronRight, Plus, RefreshCw, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { relativeTime } from '@/lib/format';
 import { usePoll } from '@/lib/usePoll';
@@ -31,6 +31,9 @@ const KIND_FILTERS: { key: string; zh: string; en: string }[] = [
   { key: 'weekly', zh: '周报', en: 'Weekly' },
   { key: 'monthly', zh: '月报', en: 'Monthly' },
 ];
+
+const KIND_ZH: Record<string, string> = { daily: '日报', weekly: '周报', monthly: '月报', custom: '自定义' };
+const KIND_EN: Record<string, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom' };
 
 export default function ReportsPage() {
   const { tr } = useI18n();
@@ -114,54 +117,62 @@ export default function ReportsPage() {
         <FilterGroup label={tr('类型', 'Kind')} options={KIND_FILTERS} value={kindFilter} onChange={setKindFilter} tr={tr} />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        {loading ? (
-          <div className="py-16 text-center text-sm text-zinc-500">
-            <RefreshCw size={18} className="mx-auto mb-2 animate-spin" />
-            {tr('加载中…', 'Loading…')}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="m-6 rounded-lg border border-dashed border-zinc-800 py-16 text-center">
-            <CalendarClock size={28} className="mx-auto mb-3 text-zinc-600" />
-            <p className="text-sm text-zinc-400">
-              {page > 0 ? tr('这一页没有报告', 'No reports on this page') : tr('还没有报告', 'No reports yet')}
-            </p>
-            {page === 0 && (
-              <p className="mt-1 text-xs text-zinc-600">
-                {tr('设一个日报/周报定时生成，或点「立即生成」。', 'Set up a daily/weekly schedule, or click Generate now.')}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-zinc-800/70 border-b border-zinc-800/70">
-            {items.map((r) => (
-              <Link
-                key={r.id}
-                to={`/reports/${r.id}`}
-                className="flex items-center gap-4 px-6 py-2.5 hover:bg-zinc-900/50"
-              >
-                <span className="w-64 shrink-0 truncate text-sm font-medium text-zinc-100">{r.title}</span>
-                <span className="hidden flex-1 truncate text-xs text-zinc-500 md:block">{r.summary}</span>
-                <span className="shrink-0 text-[11px] text-zinc-600">
-                  {r.generated_at ? relativeTime(r.generated_at) : relativeTime(r.created_at)}
-                </span>
-                <span
-                  className={cn(
-                    'w-20 shrink-0 rounded border px-1.5 py-0.5 text-center text-[10px] font-medium',
-                    STATUS_STYLE[r.status],
-                  )}
-                >
-                  {r.status}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
+      <div className="flex flex-1 flex-col overflow-y-auto px-6 py-5">
+        <div className="overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/40">
+          <table className="w-full text-sm">
+            <thead className="border-b border-zinc-800/60 bg-zinc-950/40 text-[11px] uppercase tracking-wider text-zinc-500">
+              <tr>
+                <th className="px-4 py-2.5 text-left">{tr('标题', 'Title')}</th>
+                <th className="px-4 py-2.5 text-left">{tr('类型', 'Kind')}</th>
+                <th className="hidden px-4 py-2.5 text-left md:table-cell">{tr('摘要', 'Summary')}</th>
+                <th className="px-4 py-2.5 text-left">{tr('状态', 'Status')}</th>
+                <th className="px-4 py-2.5 text-right">{tr('生成时间', 'Generated')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/40">
+              {loading && items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-zinc-500">
+                    {tr('加载中…', 'Loading…')}
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-zinc-500">
+                    {page > 0
+                      ? tr('这一页没有报告', 'No reports on this page')
+                      : tr('暂无报告。点右上角「立即生成」，或设一个定时任务。', 'No reports yet. Click "Generate now" or set up a schedule.')}
+                  </td>
+                </tr>
+              ) : (
+                items.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="cursor-pointer transition-colors hover:bg-zinc-900/40"
+                    onClick={() => navigate(`/reports/${r.id}`)}
+                  >
+                    <td className="whitespace-nowrap px-4 py-2.5 font-medium text-zinc-100">{r.title}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-zinc-400">{tr(KIND_ZH[r.kind] ?? r.kind, KIND_EN[r.kind] ?? r.kind)}</td>
+                    <td className="hidden max-w-md truncate px-4 py-2.5 text-zinc-500 md:table-cell">{r.summary}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5">
+                      <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium', STATUS_STYLE[r.status])}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs text-zinc-500">
+                      {r.generated_at ? relativeTime(r.generated_at) : relativeTime(r.created_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination — no total count from the API, so next is enabled
             while a full page came back. */}
         {(page > 0 || items.length === PAGE_SIZE) && (
-          <div className="flex items-center justify-end gap-2 px-6 py-3 text-xs text-zinc-400">
+          <div className="flex items-center justify-end gap-2 py-3 text-xs text-zinc-400">
             <span className="mr-2 text-zinc-600">{tr(`第 ${page + 1} 页`, `Page ${page + 1}`)}</span>
             <button
               type="button"
