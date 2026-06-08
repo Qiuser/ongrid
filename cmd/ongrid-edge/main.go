@@ -88,6 +88,7 @@ func main() {
 		CloudAddr: cfg.Edge.CloudAddr,
 		AccessKey: cfg.Edge.AccessKey,
 		SecretKey: cfg.Edge.SecretKey,
+		Log:       log,
 	})
 
 	rootCtx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
