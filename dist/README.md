@@ -47,10 +47,13 @@ combos so users can run them directly on heterogeneous hosts.
 
 ## Release flow
 
-1. Bump the version: edit `VERSION` at the repo root (e.g. `v0.1.1`).
-2. Run `make package-all` from the repo root to build both server packages.
-   Use `make package TARGET_ARCH=arm64` only when you need a single ARM64
-   package. This will:
+1. Bump the version: edit `VERSION` at the repo root (e.g. `v0.1.1`), commit
+   the change, then tag that commit with the same value:
+   `git tag v0.1.1 && git push origin v0.1.1`.
+2. The `Release` GitHub Actions workflow runs on `v*.*.*` tag pushes and
+   executes `make package-all` to build both server packages. Use
+   `make package TARGET_ARCH=arm64` locally only when you need a single ARM64
+   package. The release build will:
    - `build-edge-all`    — cross-compile ongrid-edge for 4 targets
    - `docker-build`      — build `ongrid:<VERSION>` image for `linux/<arch>`
    - stage everything under `dist/stage/ongrid-<VERSION>-linux-<arch>/`
