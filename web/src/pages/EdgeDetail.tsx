@@ -1150,7 +1150,7 @@ function PluginSubCard({
     await onSave({ enabled: !row.enabled, spec: row.spec });
   };
   return (
-    <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/30">
+    <div className="rounded-lg border border-zinc-800/60 bg-zinc-950/40">
       <div className="flex items-center justify-between gap-3 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span
