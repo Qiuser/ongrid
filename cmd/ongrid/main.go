@@ -241,6 +241,11 @@ func main() {
 	}
 
 	// iam wiring.
+	const insecureJWTSecret = "dev-insecure-secret-change-me"
+	if cfg.JWT.Secret == insecureJWTSecret {
+		log.Error("FATAL: ONGRID_JWT_SECRET is still the built-in default — refusing to start. Set a strong random secret (e.g. openssl rand -base64 32) in your environment.")
+		os.Exit(1)
+	}
 	userRepo := iamdatauser.NewRepo(db)
 	signer := auth.NewSigner(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 	userUC := iambizuser.NewUsecase(userRepo, signer, log)
@@ -2626,14 +2631,15 @@ func buildAIOpsRuntime(
 		defProv = llm.ProviderOpenAI
 	}
 	if _, ok := innerModels[defProv]; !ok {
-		// Default provider not configured — pick any configured
-		// provider deterministically so the routing model can still
-		// dispatch. Without this fallback the build errors and the
-		// graph kernel never wires.
+		// Default provider not configured — pick the first configured
+		// provider alphabetically so the result is deterministic across
+		// restarts (Go map iteration order is randomized).
+		keys := make([]string, 0, len(innerModels))
 		for k := range innerModels {
-			defProv = k
-			break
+			keys = append(keys, k)
 		}
+		sort.Strings(keys)
+		defProv = keys[0]
 	}
 	// DefaultResolver lets calls that omit a provider (the RCA investigator
 	// worker, query_translate) track the LIVE configured default — the model
